@@ -20,7 +20,7 @@ function LandingPage(props) {
   return (
     <div
       style={{
-        display: "flex",
+        display: "grid",
         justifyContent: "center",
         alignItems: "center",
         width: "100%",
