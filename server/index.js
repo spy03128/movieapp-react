@@ -25,6 +25,10 @@ mongoose
 
 app.get("/", (req, res) => res.send("Hello Word! 아녕"));
 
+app.get("/api/hello", (req, res) => {
+  res.send("안녕하시지말입니까");
+});
+
 app.post("/api/users/register", (req, res) => {
   //회원가입 시 필요한 정보를 가져와 DB에 넣음
 
