@@ -1,80 +1,140 @@
-import React, { useEffect, useState } from "react";
-import { API_URL, API_KEY, IMAGE_BASE_URL } from "../../Config";
-import MainImage from "../LandingPage/Sections/MainImage";
-import MovieInfo from "./Sections/MovieInfo";
-import GridCards from "../../commons/GridCards";
-import { Row } from "antd";
+import React, { useEffect, useState } from 'react'
+import { List, Avatar, Row, Col, Button } from 'antd';
+import axios from 'axios';
 
-function MovieDetail(props) {
-  let movieId = props.match.params.movieId;
+import Comments from './Sections/Comments'
+import LikeDislikes from './Sections/LikeDislikes';
+import { API_URL, API_KEY, IMAGE_BASE_URL, IMAGE_SIZE } from '../../Config'
+import GridCards from '../commons/GridCards';
+import MainImage from '../../views/LandingPage/Sections/MainImage';
+import MovieInfo from './Sections/MovieInfo';
+import Favorite from './Sections/Favorite';
+function MovieDetailPage(props) {
 
-  const [movie, setMovie] = useState([]);
-  const [casts, setCasts] = useState([]);
-  const [actorToggle, setActorToggle] = useState(false);
+    const movieId = props.match.params.movieId
+    const [Movie, setMovie] = useState([])
+    const [Casts, setCasts] = useState([])
+    const [CommentLists, setCommentLists] = useState([])
+    const [LoadingForMovie, setLoadingForMovie] = useState(true)
+    const [LoadingForCasts, setLoadingForCasts] = useState(true)
+    const [ActorToggle, setActorToggle] = useState(false)
+    const movieVariable = {
+        movieId: movieId
+    }
 
-  useEffect(() => {
-    let endpointInfo = `${API_URL}movie/${movieId}?api_key=${API_KEY}`;
-    let endpointCrew = `${API_URL}movie/${movieId}/credits?api_key=${API_KEY}`;
+    useEffect(() => {
 
-    fetch(endpointInfo)
-      .then((response) => response.json())
-      .then((response) => {
-        console.log(response);
-        setMovie(response);
-      });
+        let endpointForMovieInfo = `${API_URL}movie/${movieId}?api_key=${API_KEY}&language=en-US`;
+        fetchDetailInfo(endpointForMovieInfo)
 
-    fetch(endpointCrew)
-      .then((response) => response.json())
-      .then((response) => {
-        console.log(response);
-        setCasts(response.cast);
-      });
-  }, []);
+        axios.post('/api/comment/getComments', movieVariable)
+            .then(response => {
+                console.log(response)
+                if (response.data.success) {
+                    console.log('response.data.comments', response.data.comments)
+                    setCommentLists(response.data.comments)
+                } else {
+                    alert('Failed to get comments Info')
+                }
+            })
 
-  const toggleActorView = () => {
-    setActorToggle(!actorToggle);
-    console.log(actorToggle);
-  };
+    }, [])
 
-  return (
-    <div>
-      {/* {Header} */}
-      <MainImage
-        image={`${IMAGE_BASE_URL}w1280${movie.backdrop_path}`}
-        title={movie.original_title}
-        text={movie.overview}
-      />
-      {/* {body} */}
-      <div style={{ width: "85%", margin: "1rem auto" }}>
-        {/* {Movie Info} */}
-        <MovieInfo movie={movie} />
-        <br />
-        {/* {Actors Grid} */}
-        <div
-          style={{ display: "flex", justifyContent: "center", margin: "2rem" }}
-        >
-          <button onClick={toggleActorView}>Toggle Actors Views</button>
+    const toggleActorView = () => {
+        setActorToggle(!ActorToggle)
+    }
+
+    const fetchDetailInfo = (endpoint) => {
+
+        fetch(endpoint)
+            .then(result => result.json())
+            .then(result => {
+                console.log(result)
+                setMovie(result)
+                setLoadingForMovie(false)
+
+                let endpointForCasts = `${API_URL}movie/${movieId}/credits?api_key=${API_KEY}`;
+                fetch(endpointForCasts)
+                    .then(result => result.json())
+                    .then(result => {
+                        console.log(result)
+                        setCasts(result.cast)
+                    })
+
+                setLoadingForCasts(false)
+            })
+            .catch(error => console.error('Error:', error)
+            )
+    }
+
+    const updateComment = (newComment) => {
+        setCommentLists(CommentLists.concat(newComment))
+    }
+
+    return (
+        <div>
+            {/* Header */}
+            {!LoadingForMovie ?
+                <MainImage
+                    image={`${IMAGE_BASE_URL}${IMAGE_SIZE}${Movie.backdrop_path}`}
+                    title={Movie.original_title}
+                    text={Movie.overview}
+                />
+                :
+                <div>loading...</div>
+            }
+
+
+            {/* Body */}
+            <div style={{ width: '85%', margin: '1rem auto' }}>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <Favorite movieInfo={Movie} movieId={movieId} userFrom={localStorage.getItem('userId')} />
+                </div>
+
+
+                {/* Movie Info */}
+                {!LoadingForMovie ?
+                    <MovieInfo movie={Movie} />
+                    :
+                    <div>loading...</div>
+                }
+
+                <br />
+                {/* Actors Grid*/}
+
+                <div style={{ display: 'flex', justifyContent: 'center', margin: '2rem' }}>
+                    <Button onClick={toggleActorView}>Toggle Actor View </Button>
+                </div>
+
+                {ActorToggle &&
+                    <Row gutter={[16, 16]}>
+                        {
+                            !LoadingForCasts ? Casts.map((cast, index) => (
+                                cast.profile_path &&
+                                <GridCards
+                                    image={cast.profile_path ?
+                                        `${IMAGE_BASE_URL}w500${cast.profile_path}` : null}
+                                    characterName={cast.name}
+                                />)) :
+                                <div>loading...</div>
+                        }
+                    </Row>
+                }
+                <br />
+
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                    <LikeDislikes video videoId={movieId} userId={localStorage.getItem('userId')} />
+                </div>
+
+                {/* Comments */}
+                <Comments movieTitle={Movie.original_title} CommentLists={CommentLists} postId={movieId} refreshFunction={updateComment} />
+
+            </div>
+
         </div>
-        {actorToggle && (
-          <Row gutter={[16, 16]}>
-            {casts &&
-              casts.map((casts, index) => (
-                <React.Fragment key={index}>
-                  <GridCards
-                    image={
-                      casts.profile_path
-                        ? `${IMAGE_BASE_URL}w500${casts.profile_path}`
-                        : null
-                    }
-                    characterName={casts.name}
-                  />
-                </React.Fragment>
-              ))}
-          </Row>
-        )}
-      </div>
-    </div>
-  );
+    )
 }
 
-export default MovieDetail;
+export default MovieDetailPage
+
